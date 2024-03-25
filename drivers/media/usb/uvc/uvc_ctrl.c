@@ -1322,9 +1322,22 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		break;
 	}
 
-	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MIN)
+	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MIN) {
 		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN,
 				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+
+		if (chain->dev->quirks & UVC_QUIRK_OBSBOT_MIN_SETTINGS) {
+			switch (v4l2_ctrl->id) {
+			case V4L2_CID_ZOOM_CONTINUOUS:
+			case V4L2_CID_PAN_SPEED:
+			case V4L2_CID_TILT_SPEED:
+				v4l2_ctrl->minimum = -1 * mapping->get(mapping, UVC_GET_MAX,
+						     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+			default:
+				break;
+			}
+		}
+	}
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MAX)
 		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX,
@@ -1914,6 +1927,18 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
 		max = mapping->get(mapping, UVC_GET_MAX,
 				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+
+		if (chain->dev->quirks & UVC_QUIRK_OBSBOT_MIN_SETTINGS) {
+			switch (xctrl->id) {
+			case V4L2_CID_ZOOM_CONTINUOUS:
+			case V4L2_CID_PAN_SPEED:
+			case V4L2_CID_TILT_SPEED:
+				min = max * -1;
+			default:
+				break;
+			}
+		}
+
 		step = mapping->get(mapping, UVC_GET_RES,
 				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 		if (step == 0)
