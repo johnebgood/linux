@@ -426,8 +426,15 @@ static s32 uvc_ctrl_get_zoom(struct uvc_control_mapping *mapping,
 static void uvc_ctrl_set_zoom(struct uvc_control_mapping *mapping,
 	s32 value, u8 *data)
 {
+	s32 aval = abs(value);
+
+	if (mapping->probed_min > 0 && aval > 0 && aval < mapping->probed_min) {
+		aval = mapping->probed_min;
+		value = 0;
+	}
+
 	data[0] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
-	data[2] = min((int)abs(value), 0xff);
+	data[2] = min((int)aval, 0xff);
 }
 
 static s32 uvc_ctrl_get_rel_speed(struct uvc_control_mapping *mapping,
@@ -441,7 +448,9 @@ static s32 uvc_ctrl_get_rel_speed(struct uvc_control_mapping *mapping,
 		return (rel == 0) ? 0 : (rel > 0 ? data[first+1]
 						 : -data[first+1]);
 	case UVC_GET_MIN:
-		return -data[first+1];
+		/* For relative speed minimum is set later from maximum */
+		mapping->probed_min = data[first+1];
+		return 0;
 	case UVC_GET_MAX:
 	case UVC_GET_RES:
 	case UVC_GET_DEF:
@@ -454,9 +463,15 @@ static void uvc_ctrl_set_rel_speed(struct uvc_control_mapping *mapping,
 	s32 value, u8 *data)
 {
 	unsigned int first = mapping->offset / 8;
+	s32 aval = abs(value);
+
+	if (mapping->probed_min > 0 && aval > 0 && aval < mapping->probed_min) {
+		aval = mapping->probed_min;
+		value = 0;
+	}
 
 	data[first] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
-	data[first+1] = min_t(int, abs(value), 0xff);
+	data[first + 1] = min_t(int, aval, 0xff);
 }
 
 static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
@@ -689,6 +704,7 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
 		.get		= uvc_ctrl_get_zoom,
 		.set		= uvc_ctrl_set_zoom,
+		.probed_min = 0,
 	},
 	{
 		.id		= V4L2_CID_PAN_ABSOLUTE,
@@ -718,6 +734,7 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
 		.get		= uvc_ctrl_get_rel_speed,
 		.set		= uvc_ctrl_set_rel_speed,
+		.probed_min = 0,
 	},
 	{
 		.id		= V4L2_CID_TILT_SPEED,
@@ -729,6 +746,7 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.data_type	= UVC_CTRL_DATA_TYPE_SIGNED,
 		.get		= uvc_ctrl_get_rel_speed,
 		.set		= uvc_ctrl_set_rel_speed,
+		.probed_min = 0,
 	},
 	{
 		.id		= V4L2_CID_PRIVACY,

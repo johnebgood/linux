@@ -127,6 +127,7 @@ struct uvc_control_mapping {
 		   const u8 *data);
 	void (*set)(struct uvc_control_mapping *mapping, s32 value,
 		    u8 *data);
+	u8 probed_min;
 };
 
 struct uvc_control {
